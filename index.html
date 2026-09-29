@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Jujutsu Potato | جوجوتسو بوتيتو</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            margin: 0; padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body, html {
+            width: 100%; height: 100%;
+            background-color: #000; color: white;
+            overflow: hidden; touch-action: none;
+        }
+
+        #game-view {
+            position: relative; width: 100vw; height: 100vh;
+            background: radial-gradient(circle at center, #1a0026 0%, #05000c 100%);
+            overflow: hidden;
+        }
+
+        #ground {
+            position: absolute; bottom: 0; width: 100%; height: 20%;
+            background: #11001c; border-top: 4px solid #ff0055;
+            box-shadow: 0 -5px 20px rgba(255, 0, 85, 0.5);
+            z-index: 1;
+        }
+
+        #player {
+            position: absolute; bottom: 20%; left: 50%;
+            transform: translateX(-50%); width: 50px; height: 85px; z-index: 5;
+            transition: transform 0.08s ease;
+        }
+
+        .head { position: absolute; top: 0; left: 10px; width: 30px; height: 28px; z-index: 3; }
+        .hair { position: absolute; top: 0; width: 100%; height: 16px; border-radius: 6px 6px 0 0; }
+        .face { position: absolute; bottom: 0; left: 3px; width: 24px; height: 16px; background: #ffcc99; }
+        .torso { position: absolute; top: 26px; left: 11px; width: 28px; height: 32px; background: #111827; border-radius: 4px; z-index: 2; }
+        .limb { position: absolute; border-radius: 4px; transform-origin: top center; transition: transform 0.08s ease; }
+        .arm { width: 11px; height: 24px; z-index: 4; }
+        .arm-left { top: 28px; left: 1px; }
+        .arm-right { top: 28px; right: 1px; }
+        .leg { width: 12px; height: 28px; background: #0d0d13; z-index: 1; }
+        .leg-left { top: 56px; left: 12px; }
+        .leg-right { top: 56px; right: 12px; }
+
+        .char-yuji .hair { background: #ff3388; box-shadow: 0 0 8px #ff0055; border-bottom: 3px solid #111; }
+        .char-yuji .arm { background: #111827; }
+        .char-todo .hair { background: #111; height: 16px; }
+        .char-todo .torso { background: #1f2937; border-left: 3px solid #3b82f6; width: 34px; left: 8px; }
+        .char-todo .arm { background: #ffcc99; width: 13px; }
+        .char-choso .hair { background: #000; height: 18px; top: -2px; }
+        .char-choso .face::after { content: ''; position: absolute; top: 7px; left: 0; width: 100%; height: 3px; background: #990000; }
+        .char-choso .torso { background: #374151; border-left: 3px solid #dc2626; }
+        .char-choso .arm { background: #4b5563; }
+        .char-megumi .hair { background: #0b0e14; height: 20px; top: -4px; border-radius: 4px 4px 0 0; }
+        .char-megumi .torso { background: #1e1b4b; border-left: 3px solid #6366f1; }
+        .char-megumi .arm { background: #312e81; }
+
+        .anim-punch-yuji .arm-right, 
+        .anim-punch-megumi .arm-right { transform: rotate(-100deg) translateY(-12px) scaleX(1.4); background: #ff0055 !important; }
+        .anim-punch-todo .arm-right { transform: rotate(-110deg) translateY(-15px) scale(1.3); background: #3b82f6 !important; }
+        .anim-punch-choso .arm-right { transform: rotate(-90deg) translateY(-14px); background: #dc2626 !important; }
+
+        .boss-entity { position: absolute; bottom: 20%; z-index: 4; transform: scale(1.35); }
+        .boss-mahito { width: 48px; height: 80px; }
+        .boss-mahito .b-head { position: absolute; top: 0; left: 10px; width: 28px; height: 26px; background: #d1d5db; }
+        .boss-mahito .b-hair { position: absolute; top: -5px; left: 4px; width: 36px; height: 16px; background: #60a5fa; }
+        .boss-mahito .b-body { position: absolute; top: 26px; left: 8px; width: 32px; height: 54px; background: #1f2937; }
+
+        .curse {
+            position: absolute; bottom: 20%; width: 48px; height: 75px; z-index: 4;
+            background: linear-gradient(180deg, #4b0082, #1a0033);
+            border-radius: 20px 20px 5px 5px; border: 2px solid #9900cc;
+            box-shadow: 0 0 10px #9900cc;
+        }
+
+        #hud {
+            position: absolute; top: 15px; left: 15px; right: 15px;
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 13px; font-weight: bold; color: #fff; text-shadow: 2px 2px #000; z-index: 10;
+            pointer-events: none;
+        }
+        .hud-bar-box { width: 70px; height: 12px; background: #222; border: 1px solid #ff0055; display: inline-block; vertical-align: middle; border-radius: 3px; overflow: hidden; }
+        #hp-bar { width: 100%; height: 100%; background: #ff0055; transition: width 0.1s ease; }
+        #ult-bar { width: 0%; height: 100%; background: #ffcc00; transition: width 0.1s ease; }
+
+        #mobile-joystick-container {
+            position: absolute; bottom: 25px; left: 20px; width: 100px; height: 100px;
+            background: rgba(255, 255, 255, 0.08); border: 2px solid rgba(255, 0, 85, 0.4);
+            border-radius: 50%; z-index: 100; touch-action: none;
+        }
+        #mobile-joystick-knob {
+            position: absolute; top: 30px; left: 30px; width: 40px; height: 40px;
+            background: #ff0055; border-radius: 50%; pointer-events: none;
+            box-shadow: 0 0 10px #ff0055;
+        }
+
+        .controls-right {
+            position: absolute; bottom: 25px; right: 20px;
+            display: flex; gap: 10px; align-items: flex-end; z-index: 100;
+        }
+        .touch-btn {
+            width: 58px; height: 58px; background: rgba(255, 255, 255, 0.12);
+            border: 2px solid rgba(255, 255, 255, 0.3); border-radius: 50%; color: white;
+            font-size: 11px; font-weight: bold; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; backdrop-filter: blur(6px); cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+        }
+        .touch-btn:active { transform: scale(0.9); background: rgba(255, 0, 85, 0.6); }
+
+        .overlay {
+            position: absolute; top:0; left:0; width:100%; height:100%;
+            background: rgba(5, 0, 12, 0.92); display: flex; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 2000; text-align: center;
+            backdrop-filter: blur(8px);
+        }
+        .top-bar-overlay {
+            position: absolute; top: 15px; left: 20px; right: 20px;
+            display: flex; justify-content: space-between; align-items: center; width: 90%;
+        }
+        .lang-btn {
+            background: #1f2937; border: 1px solid #ff0055; color: #fff;
+            padding: 8px 15px; border-radius: 8px; font-size: 13px; cursor: pointer;
+            box-shadow: 0 0 8px rgba(255, 0, 85, 0.3);
+        }
+        .coins-display { color: #ffcc00; font-weight: bold; font-size: 16px; text-shadow: 0 0 5px #ffcc00; }
+
+        .char-select-box, .mode-select-box, .diff-select-box { display: flex; gap: 12px; margin-top: 15px; flex-wrap: wrap; justify-content: center; }
+        .char-card, .mode-card, .diff-card {
+            padding: 12px; background: rgba(26, 0, 38, 0.8); border: 2px solid #ff0055;
+            border-radius: 12px; cursor: pointer; width: 110px; transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+        .char-card.selected, .mode-card.selected, .diff-card.selected { 
+            background: #ff0055; box-shadow: 0 0 18px #ff0055; transform: scale(1.05); 
+        }
+        .char-card.locked { filter: grayscale(0.8); opacity: 0.7; border-color: #555; }
+
+        .main-btn {
+            background: linear-gradient(45deg, #ff0055, #ff3300); color: white; border: none; padding: 14px 28px;
+            font-size: 15px; font-weight: bold; border-radius: 10px; margin-top: 12px; cursor: pointer;
+            width: 230px; box-shadow: 0 4px 15px rgba(255, 0, 85, 0.4); transition: transform 0.1s ease;
+        }
+        .main-btn:active { transform: scale(0.95); }
+        .buy-btn {
+            background: #ffcc00; color: #000; border: none; padding: 6px 12px;
+            font-size: 11px; font-weight: bold; border-radius: 6px; margin-top: 6px; cursor: pointer;
+        }
+
+        #alert-msg {
+            position: absolute; top: 75px; background: #ef4444; color: white;
+            padding: 10px 20px; border-radius: 20px; font-size: 13px; font-weight: bold;
+            display: none; z-index: 3000; box-shadow: 0 0 12px #ef4444;
+        }
+    </style>
+</head>
+<body>
+
+    <audio id="mahito-bgm" loop preload="auto">
+        <source src="https://ia801503.us.archive.org/15/items/jujutsu-kaisen-ost-mahito-theme/Mahito%20Theme.mp3" type="audio/mpeg">
+    </audio>
+
+    <div id="game-view">
+        <div id="alert-msg">عذراً! لا تملك المبلغ الكافي لشراء هذه الشخصية ⚠️</div>
+
+        <!-- القائمة الرئيسية -->
+        <div id="lobby" class="overlay">
+            <div class="top-bar-overlay">
+                <button class="lang-btn" id="btn-lang">English 🌐</button>
+                <div class="coins-display">💰 <span id="coins-menu">0</span></div>
+            </div>
+
+            <h1 style="color: #ff0055; text-shadow: 0 0 15px #ff0055; font-size: 28px;" id="txt-title">JUJUTSU POTATO</h1>
+            <p style="color: #aaa; font-size: 13px; margin-top: 4px;" id="txt-subtitle">اختر طور اللعب واستعد للمعركة</p>
+            <p style="color: #ffcc00; font-size: 14px; margin-top: 8px;" id="txt-best-menu">🏆 أعلى سكور: 0</p>
+
+            <button class="main-btn" id="btn-start">ابدأ المعركة ⚔️</button>
+            <button class="main-btn" style="background: linear-gradient(45deg, #2563eb, #3b82f6);" id="btn-open-store">المتجر 🛒</button>
+        </div>
+
+        <!-- نافذة المتجر -->
+        <div id="store-menu" class="overlay" style="display: none;">
+            <h2 style="color: #ffcc00; margin-bottom: 5px;" id="txt-store-title">متجر الشخصيات 🛒</h2>
+            <div class="coins-display" style="margin-bottom: 10px;">رصيدك الحالي: 💰 <span id="store-coins">0</span></div>
+
+            <div class="char-select-box">
+                <div class="char-card selected" id="card-yuji">
+                    <h3 id="name-yuji">إيتادوري</h3>
+                    <p style="font-size: 9px; color: #ccc; margin-top: 3px;">Black Flash</p>
+                    <div id="status-yuji" style="font-size: 11px; color: #4ade80; margin-top: 6px;">مفتوح</div>
+                </div>
+                <div class="char-card locked" id="card-todo">
+                    <h3 id="name-todo">تودو</h3>
+                    <p style="font-size: 9px; color: #ccc; margin-top: 3px;">Boogie Woogie</p>
+                    <button class="buy-btn" id="buy-todo">500 💰</button>
+                    <div id="status-todo" style="font-size: 11px; color: #4ade80; margin-top: 6px; display:none;">مفتوح</div>
+                </div>
+                <div class="char-card locked" id="card-choso">
+                    <h3 id="name-choso">تشوسو</h3>
+                    <p style="font-size: 9px; color: #ccc; margin-top: 3px;">Blood Beam</p>
+                    <button class="buy-btn" id="buy-choso">500 💰</button>
+                    <div id="status-choso" style="font-size: 11px; color: #4ade80; margin-top: 6px; display:none;">مفتوح</div>
+                </div>
+                <div class="char-card locked" id="card-megumi">
+                    <h3 id="name-megumi">ميغومي</h3>
+                    <p style="font-size: 9px; color: #ccc; margin-top: 3px;">Shadow Dog</p>
+                    <button class="buy-btn" id="buy-megumi">700 💰</button>
+                    <div id="status-megumi" style="font-size: 11px; color: #4ade80; margin-top: 6px; display:none;">مفتوح</div>
+                </div>
+            </div>
+
+            <button class="main-btn" style="background: #4b5563; margin-top: 20px;" id="btn-close-store">العودة للرئيسية 🏠</button>
+        </div>
+
+        <!-- قائمة اختيار الأطوار -->
+        <div id="mode-menu" class="overlay" style="display: none;">
+            <h2 style="color: #ff0055; margin-bottom: 10px;" id="txt-mode-title">اختر طور اللعب</h2>
+            
+            <div class="mode-select-box">
+                <div class="mode-card selected" id="mode-score">
+                    <h3 id="mname-score">السكور</h3>
+                    <p style="font-size: 9px; color: #ccc; margin-top: 3px;" id="mdesc-score">جمع النقاط والفلوس</p>
+                </div>
+                <div class="mode-card" id="mode-wave">
+                    <h3 id="mname-wave">الموجات</h3>
+                    <p style="font-size: 9px; color: #ccc; margin-top: 3px;" id="mdesc-wave">مكافآت ويفات عالية</p>
+                </div>
+                <div class="mode-card" id="mode-boss">
+                    <h3 id="mname-boss">البوسات</h3>
+                    <p style="font-size: 9px; color: #ccc; margin-top: 3px;" id="mdesc-boss">جائزة ضخمة للبوس</p>
+                </div>
+            </div>
+
+            <div id="wave-diff-container" style="display: none; margin-top: 15px;">
+                <p style="font-size: 13px; color: #ffcc00;" id="txt-diff-title">اختر الصعوبة:</p>
+                <div class="diff-select-box">
+                    <div class="diff-card" id="diff-easy">
+                        <h4 style="color: #4ade80;">سهل</h4>
+                        <p style="font-size: 9px; color: #aaa;">5 ويفات (+100 💰)</p>
+                    </div>
+                    <div class="diff-card selected" id="diff-normal">
+                        <h4 style="color: #3b82f6;">عادي</h4>
+                        <p style="font-size: 9px; color: #aaa;">10 ويفات (+250 💰)</p>
+                    </div>
+                    <div class="diff-card" id="diff-hard">
+                        <h4 style="color: #ef4444;">صعب</h4>
+                        <p style="font-size: 9px; color: #aaa;">20 ويف (+600 💰)</p>
+                    </div>
+                </div>
+            </div>
+
+            <button class="main-btn" id="btn-launch">دخول الجيم 🚀</button>
+            <button class="main-btn" style="background: #4b5563; margin-top: 10px;" id="btn-close-mode">تراجع ↩️</button>
+        </div>
+
+        <!-- شاشة نهاية الجيم -->
+        <div id="game-over" class="overlay" style="display: none;">
+            <h2 style="color: #ff0055;" id="txt-gameover-status">انتهاء المعركة! 💥</h2>
+            <p style="margin-top: 10px;" id="txt-current-score">النقاط الحالية: <span id="final-score">0</span></p>
+            <p style="margin-top: 5px; color: #ffcc00;" id="txt-earned-coins">المكاسب: +<span id="earned-coins-val">0</span> 💰</p>
+
+            <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 15px;">
+                <button class="main-btn" id="btn-restart">🔄 إعادة الجيم</button>
+                <button class="main-btn" style="background: #4b5563;" id="btn-lobby">🏠 القائمة الرئيسية</button>
+            </div>
+        </div>
+
+        <!-- HUD -->
+        <div id="hud">
+            <div>SCORE: <span id="score">0</span></div>
+            <div>💰 <span id="hud-coins">0</span></div>
+            <div>HP: <div class="hud-bar-box"><div id="hp-bar"></div></div></div>
+            <div>ULT: <div class="hud-bar-box"><div id="ult-bar"></div></div></div>
+        </div>
+
+        <!-- اللاعب -->
+        <div id="player" class="char-yuji">
+            <div class="head"><div class="hair"></div><div class="face"></div></div>
+            <div class="torso"></div>
+            <div class="limb arm arm-left"></div><div class="limb arm arm-right"></div>
+            <div class="limb leg leg-left"></div><div class="limb leg leg-right"></div>
+        </div>
+
+        <div id="ground"></div>
+
+        <!-- عصا التحكم -->
+        <div id="mobile-joystick-container">
+            <div id="mobile-joystick-knob"></div>
+        </div>
+
+        <!-- أزرار اللمس -->
+        <div class="controls-right">
+            <div class="touch-btn" id="btn-m1">👊<br>M1</div>
+            <div class="touch-btn" id="btn-skill">🛡️<br>Skill</div>
+            <div class="touch-btn" id="btn-ult">⚡<br>ULT</div>
+            <div class="touch-btn" id="btn-jump">⬆<br>Jump</div>
+        </div>
+    </div>
+
+    <script>
+        // المتغيرات الأساسية
+        let currentLang = 'ar';
+        let coins = parseInt(localStorage.getItem('jjk_coins')) || 0;
+        let bestScore = parseInt(localStorage.getItem('jjk_best')) || 0;
+        let unlockedChars = JSON.parse(localStorage.getItem('jjk_unlocked')) || ['yuji'];
+        let selectedChar = 'yuji';
+        let selectedGameMode = 'score';
+        let waveDiff = 'normal';
+
+        let score = 0;
+        let earnedCoinsInMatch = 0;
+        let hp = 100;
+        let ultEnergy = 0;
+        let isPlaying = false;
+        let playerX = window.innerWidth / 2;
+        let playerY = 0;
+        let isJumping = false;
+        let jumpVel = 0;
+        let moveSpeed = 0;
+
+        let curses = [];
+        let bosses = [];
+        let currentWave = 1;
+        let maxWaves = 10;
+        let waveEnemiesLeft = 0;
+
+        const player = document.getElementById('player');
+        const bgm = document.getElementById('mahito-bgm');
+        const alertMsg = document.getElementById('alert-msg');
+
+        const i18n = {
+            ar: {
+                title: "JUJUTSU POTATO", subtitle: "اختر طور اللعب واستعد للمعركة",
+                bestMenu: "🏆 أعلى سكور: ", start: "ابدأ المعركة ⚔️", store: "المتجر 🛒",
+                storeTitle: "متجر الشخصيات 🛒", back: "العودة للرئيسية 🏠",
+                unlocked: "مفتوح", notEnoughCoins: "عذراً! لا تملك المبلغ الكافي لشراء هذه الشخصية ⚠️",
+                modeTitle: "اختر طور اللعب", mScore: "السكور", mWave: "الموجات", mBoss: "البوسات",
+                launch: "دخول الجيم 🚀", yuji: "إيتادوري", todo: "تودو", choso: "تشوسو", megumi: "ميغومي"
+            },
+            en: {
+                title: "JUJUTSU POTATO", subtitle: "Choose Game Mode & Fight",
+                bestMenu: "🏆 BEST SCORE: ", start: "START BATTLE ⚔️", store: "STORE 🛒",
+                storeTitle: "CHARACTER STORE 🛒", back: "Main Menu 🏠",
+                unlocked: "Unlocked", notEnoughCoins: "Not enough coins to buy this character! ⚠️",
+                modeTitle: "Select Game Mode", mScore: "Score Mode", mWave: "Waves Mode", mBoss: "Boss Rush",
+                launch: "Launch Game 🚀", yuji: "Yuji", todo: "Todo", choso: "Choso", megumi: "Megumi"
+            }
+        };
+
+        function showAlert(msg) {
+            alertMsg.innerText = msg;
+            alertMsg.style.display = 'block';
+            setTimeout(() => alertMsg.style.display = 'none', 2500);
+        }
+
+        function updateUI() {
+            const t = i18n[currentLang];
+            document.getElementById('txt-title').innerText = t.title;
+            document.getElementById('txt-subtitle').innerText = t.subtitle;
+            document.getElementById('txt-best-menu').innerText = t.bestMenu + bestScore;
+            document.getElementById('btn-start').innerText = t.start;
+            document.getElementById('btn-open-store').innerText = t.store;
+            document.getElementById('txt-store-title').innerText = t.storeTitle;
+            document.getElementById('btn-close-store').innerText = t.back;
+            document.getElementById('txt-mode-title').innerText = t.modeTitle;
+            document.getElementById('btn-launch').innerText = t.launch;
+
+            document.getElementById('coins-menu').innerText = coins;
+            document.getElementById('store-coins').innerText = coins;
+            document.getElementById('hud-coins').innerText = coins;
+
+            updateStoreCards();
+        }
+
+        function updateStoreCards() {
+            ['yuji', 'todo', 'choso', 'megumi'].forEach(c => {
+                const card = document.getElementById
